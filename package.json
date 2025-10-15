@@ -1,7 +1,7 @@
 {
-  "name": "microservices-web-app",
+  "name": "wecloud-logistics-web",
   "version": "1.0.0",
-  "description": "Web application frontend for microservices architecture",
+  "description": "WeCloud Logistics - Web application frontend for microservices architecture",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",

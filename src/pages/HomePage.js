@@ -4,7 +4,7 @@ function HomePage({ services }) {
   return (
     <div className="home-page">
       <div className="hero">
-        <h1 className="hero-title">🚀 Microservices Architecture</h1>
+        <h1 className="hero-title">WeCloud Logistics</h1>
         <p className="hero-subtitle">
           A modern, scalable application built with microservices
         </p>

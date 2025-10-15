@@ -32,7 +32,7 @@ function App() {
         <nav className="navbar">
           <div className="nav-container">
             <Link to="/" className="nav-logo">
-              🚀 Microservices App
+               WeCloud Logistics
             </Link>
             <ul className="nav-menu">
               <li className="nav-item">
@@ -61,7 +61,7 @@ function App() {
         </main>
 
         <footer className="footer">
-          <p>Microservices Architecture Demo © 2024</p>
+          <p>WeCloud Logistics © 2025</p>
         </footer>
       </div>
     </Router>
