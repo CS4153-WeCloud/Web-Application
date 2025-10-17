@@ -211,6 +211,41 @@ app.use(cors({
 }));
 ```
 
+## Google Cloud VM Access Guide 🌐
+1. **View the Live Frontend:** The production frontend is hosted on a Google Cloud Compute Engine VM. URL: http://34.170.21.219/
+2. **SSH into the VM:**
+- Go to 👉 https://console.cloud.google.com/compute/instances
+- Select the project name: WeCloud
+- Locate the instance named frontend-vm
+- Click the SSH button in the right column — it opens a browser terminal.
+- You’re now inside the VM (Ubuntu 22.04 LTS running Nginx).
+
+- **💡 If you don’t see the SSH button:**
+Ask the VM owner (Jessica Liu) to add your Google account under
+IAM & Admin → IAM → Grant Access → Role: Compute Instance Admin (v1).
+
+3. **Deploying Code Changes**: Whenever new commits are merged into the repo, follow these steps on the VM:
+```
+# 1. SSH into the VM
+cd ~/Web-Application
+
+# 2. Pull the latest code
+git pull origin main
+
+# 3. Install dependencies
+npm install
+
+# 4. Rebuild the production bundle
+npm run build
+
+# 5. Redeploy to Nginx
+sudo rm -rf /var/www/html/*
+sudo cp -r build/* /var/www/html/
+sudo systemctl reload nginx
+```
+
+After a few seconds, the updated site will appear at http://34.170.21.219/
+
 ## Troubleshooting
 
 ### Can't connect to microservices
@@ -293,4 +328,5 @@ npm run eject   # Eject from Create React App (careful!)
 ## License
 
 MIT
+
 
