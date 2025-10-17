@@ -54,25 +54,6 @@ function HomePage({ services }) {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: '2rem' }}>
-        <h2 className="card-title">🎯 Architecture Overview</h2>
-        <div className="card-content">
-          <p><strong>Frontend:</strong> React application (this app)</p>
-          <p><strong>Backend:</strong> 3 independent microservices</p>
-          <p><strong>Database:</strong> MySQL (shared instance)</p>
-          <p><strong>Deployment:</strong> Google Cloud Platform VMs</p>
-          <p style={{ marginTop: '1rem' }}>
-            <strong>Features:</strong>
-          </p>
-          <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
-            <li>RESTful APIs with OpenAPI documentation</li>
-            <li>Service-to-service communication</li>
-            <li>Independent deployment and scaling</li>
-            <li>Health monitoring endpoints</li>
-          </ul>
-        </div>
-      </div>
-
       <style jsx>{`
         .hero {
           text-align: center;
@@ -84,11 +65,13 @@ function HomePage({ services }) {
           font-size: 3rem;
           margin-bottom: 1rem;
           font-weight: bold;
+          color: #22c55e;
         }
 
         .hero-subtitle {
           font-size: 1.25rem;
           opacity: 0.9;
+          color: #46d279ff;
         }
 
         .services-grid {
