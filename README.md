@@ -132,6 +132,8 @@ columbia-point2point-web/
 │   └── index.css                # Global CSS reset and base styles
 ├── env.example                  # Environment variables template
 ├── package.json                 # Dependencies and build scripts
+├── BACKEND-SETUP.md             # Complete backend development guide
+├── API-DOCUMENTATION.md         # Detailed API reference
 ├── DEMO-CREDENTIALS.md          # Test account information
 ├── DEPLOYMENT.md                # Cloud deployment guide
 ├── STEP3-ROUTE-PROPOSAL.md      # Route proposal feature docs
@@ -241,6 +243,281 @@ Build and run:
 ```bash
 docker build -t web-app .
 docker run -p 80:80 web-app
+```
+
+## Backend API Documentation
+
+### Microservice Architecture
+
+The Columbia Point2Point system follows a microservice architecture with the following services:
+
+#### 1. Composite Service (Port 8080)
+
+**Main orchestrator service that coordinates between all microservices**
+
+```bash
+# Health check
+GET /health
+
+# Get all routes with member information
+GET /api/routes
+```
+
+#### 2. Auth & User Service (Port 3001)
+
+**Handles user authentication, registration, and profile management**
+
+```bash
+# Authentication endpoints
+POST /api/auth/login
+POST /api/auth/register
+POST /api/auth/refresh
+POST /api/auth/logout
+
+# User management
+GET /api/users/profile
+PUT /api/users/profile
+GET /api/users/:id
+```
+
+#### 3. Route & Group Service (Port 3002)
+
+**Manages shuttle routes, proposals, and group formation**
+
+```bash
+# Route management
+GET /api/routes
+POST /api/routes
+PUT /api/routes/:id
+DELETE /api/routes/:id
+
+# Group management
+POST /api/routes/:id/join
+DELETE /api/routes/:id/leave
+GET /api/routes/:id/members
+```
+
+#### 4. Subscription & Trip Service (Port 3003)
+
+**Handles semester subscriptions and daily trip scheduling**
+
+```bash
+# Subscription management
+POST /api/subscriptions
+GET /api/subscriptions/user/:userId
+PUT /api/subscriptions/:id
+DELETE /api/subscriptions/:id
+
+# Trip management
+GET /api/trips
+POST /api/trips
+PUT /api/trips/:id/status
+```
+
+### API Request/Response Examples
+
+#### User Authentication
+
+**POST /api/auth/login**
+
+```json
+// Request
+{
+  "email": "student@columbia.edu",
+  "password": "securepassword"
+}
+
+// Response (200)
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "email": "student@columbia.edu",
+    "firstName": "John",
+    "lastName": "Doe",
+    "homeArea": "Flushing, Queens",
+    "preferredDepartureTime": "08:00"
+  }
+}
+
+// Error Response (401)
+{
+  "success": false,
+  "error": "Invalid credentials"
+}
+```
+
+**POST /api/auth/register**
+
+```json
+// Request
+{
+  "email": "newstudent@columbia.edu",
+  "password": "securepassword",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "homeArea": "Jersey City, NJ",
+  "preferredDepartureTime": "08:30"
+}
+
+// Response (201)
+{
+  "success": true,
+  "message": "User registered successfully",
+  "user": {
+    "id": 2,
+    "email": "newstudent@columbia.edu",
+    "firstName": "Jane",
+    "lastName": "Smith"
+  }
+}
+```
+
+#### Route Management
+
+**GET /api/routes**
+
+```json
+// Response (200)
+{
+  "success": true,
+  "routes": [
+    {
+      "id": 1,
+      "from": "Columbia University",
+      "to": "Flushing, Queens",
+      "status": "active",
+      "schedule": {
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "morningTime": "08:00",
+        "eveningTime": "18:30"
+      },
+      "semester": "Fall 2025",
+      "currentMembers": 15,
+      "requiredMembers": 15,
+      "estimatedCost": 120,
+      "description": "Daily shuttle service between Columbia and Flushing",
+      "createdBy": 1,
+      "createdAt": "2025-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+**POST /api/routes**
+
+```json
+// Request (requires Authorization header)
+{
+  "from": "Columbia University",
+  "to": "Brooklyn Heights, NY",
+  "schedule": {
+    "days": ["Monday", "Wednesday", "Friday"],
+    "morningTime": "08:30",
+    "eveningTime": "17:00"
+  },
+  "semester": "Spring 2025",
+  "estimatedCost": 100,
+  "description": "Tri-weekly shuttle to Brooklyn Heights"
+}
+
+// Response (201)
+{
+  "success": true,
+  "route": {
+    "id": 3,
+    "from": "Columbia University",
+    "to": "Brooklyn Heights, NY",
+    "status": "proposed",
+    "currentMembers": 1,
+    "requiredMembers": 15,
+    // ... other fields
+  }
+}
+```
+
+#### Join Route
+
+**POST /api/routes/:id/join**
+
+```json
+// Request (requires Authorization header)
+{
+  "userId": 2
+}
+
+// Response (200)
+{
+  "success": true,
+  "message": "Successfully joined route",
+  "route": {
+    "id": 3,
+    "currentMembers": 2,
+    // ... updated route data
+  }
+}
+```
+
+### Authentication Flow
+
+1. **Frontend sends login request** to Auth Service
+2. **Auth Service validates credentials** against database
+3. **JWT token generated** with user information and expiration
+4. **Frontend stores token** in localStorage
+5. **Subsequent requests include** `Authorization: Bearer <token>` header
+6. **Services validate token** before processing protected endpoints
+
+### Database Schema Requirements
+
+#### Users Table
+
+```sql
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  home_area VARCHAR(255),
+  preferred_departure_time TIME,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Routes Table
+
+```sql
+CREATE TABLE routes (
+  id SERIAL PRIMARY KEY,
+  from_location VARCHAR(255) NOT NULL,
+  to_location VARCHAR(255) NOT NULL,
+  status ENUM('proposed', 'active', 'completed', 'cancelled') DEFAULT 'proposed',
+  schedule_days JSON NOT NULL,
+  morning_time TIME NOT NULL,
+  evening_time TIME NOT NULL,
+  semester VARCHAR(50) NOT NULL,
+  current_members INT DEFAULT 1,
+  required_members INT DEFAULT 15,
+  estimated_cost DECIMAL(10,2),
+  description TEXT,
+  created_by INT REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Route Members Table
+
+```sql
+CREATE TABLE route_members (
+  id SERIAL PRIMARY KEY,
+  route_id INT REFERENCES routes(id),
+  user_id INT REFERENCES users(id),
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(route_id, user_id)
+);
 ```
 
 ## CORS Configuration
@@ -430,6 +707,31 @@ The frontend integrates with the Columbia Point2Point microservice architecture:
 - **Auth & User Service**: User management and authentication
 - **Route & Group Service**: Route proposals and member management
 - **Subscription & Trip Service**: Semester subscriptions and daily trips
+
+## Additional Documentation
+
+For backend developers, see these comprehensive guides:
+
+### 📋 [BACKEND-SETUP.md](./BACKEND-SETUP.md)
+
+Complete setup guide for the Columbia Point2Point microservices backend:
+
+- Architecture overview with service interaction diagrams
+- Step-by-step local development environment setup
+- Database configuration and migration scripts
+- Docker and GCP deployment instructions
+- Troubleshooting guide and common issues
+
+### 📚 [API-DOCUMENTATION.md](./API-DOCUMENTATION.md)
+
+Detailed API reference documentation:
+
+- Complete endpoint specifications for all microservices
+- Request/response examples with actual JSON payloads
+- Authentication flow and JWT token handling
+- Database schema definitions and relationships
+- Postman collection and cURL testing examples
+- Error handling and validation rules
 
 ## License
 
