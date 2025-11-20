@@ -1,100 +1,138 @@
-# Web Application - Frontend
+# Columbia Point2Point Shuttle - Frontend
 
-React-based web application for the microservices architecture.
+React-based web application for the Columbia Point2Point Semester Shuttle service, integrating with microservices architecture.
 
 ## Features
 
-- ✅ Modern React 18 with Hooks
+- ✅ Modern React 18 with Hooks & Context API
 - ✅ React Router for navigation
-- ✅ Axios for API calls
-- ✅ Responsive design
-- ✅ Beautiful gradient UI
-- ✅ Service health monitoring
-- ✅ Error handling and retry logic
+- ✅ JWT-based authentication system
+- ✅ Route proposal and management system
+- ✅ Real-time route filtering and search
+- ✅ User profile management
+- ✅ Responsive mobile-first design
+- ✅ Columbia University branding
+- ✅ Microservice integration via HTTPS
+- ✅ Form validation and error handling
 
 ## Quick Start
 
 ### Local Development
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Set up environment variables:
+
 ```bash
-cp .env.example .env
-# Edit .env with your microservice URLs
+cp env.example .env
+# Edit .env with your Columbia Point2Point microservice URLs
 ```
 
 3. Start the development server:
+
 ```bash
 npm start
 ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
+5. Use demo credentials to test authentication:
+   - Email: `demo@columbia.edu`
+   - Password: `password`
+
 ## Environment Variables
 
-Create a `.env` file:
+Create a `.env` file based on `env.example`:
 
 ```bash
-REACT_APP_USER_SERVICE_URL=http://localhost:3001
-REACT_APP_ORDER_SERVICE_URL=http://localhost:3002
-REACT_APP_NOTIFICATION_SERVICE_URL=http://localhost:3003
+# Columbia Point2Point Shuttle Microservice URLs
+REACT_APP_COMPOSITE_SERVICE_URL=https://composite-service.columbia-shuttle.com
+REACT_APP_AUTH_SERVICE_URL=https://auth-service.columbia-shuttle.com
+REACT_APP_ROUTE_SERVICE_URL=https://route-service.columbia-shuttle.com
+REACT_APP_SUBSCRIPTION_SERVICE_URL=https://subscription-service.columbia-shuttle.com
 ```
 
-For production with GCP VMs:
+For development with local services:
+
 ```bash
-REACT_APP_USER_SERVICE_URL=http://<user-service-external-ip>:3001
-REACT_APP_ORDER_SERVICE_URL=http://<order-service-external-ip>:3002
-REACT_APP_NOTIFICATION_SERVICE_URL=http://<notification-service-external-ip>:3003
+REACT_APP_COMPOSITE_SERVICE_URL=http://localhost:8080
+REACT_APP_AUTH_SERVICE_URL=http://localhost:3001
+REACT_APP_ROUTE_SERVICE_URL=http://localhost:3002
+REACT_APP_SUBSCRIPTION_SERVICE_URL=http://localhost:3003
 ```
 
-## Pages
+For production deployment on GCP:
+
+```bash
+REACT_APP_COMPOSITE_SERVICE_URL=https://<cloud-run-composite-service-url>
+REACT_APP_AUTH_SERVICE_URL=https://<cloud-run-auth-service-url>
+REACT_APP_ROUTE_SERVICE_URL=https://<vm-route-service-ip>:443
+REACT_APP_SUBSCRIPTION_SERVICE_URL=https://<cloud-run-subscription-service-url>
+```
+
+## Application Pages
 
 ### 🏠 Home Page
-- Overview of all microservices
-- Service status display
-- Architecture information
 
-### 👥 Users Page
-- List all users from User Service
-- Display user details (name, email, phone, status)
-- Real-time data fetching
-- Error handling
+- Columbia Point2Point shuttle service overview
+- Route proposal system with comprehensive form validation
+- Active and proposed route listings with filtering
+- Interactive route cards showing member counts and schedules
+- Authentication-protected actions (join routes, propose routes)
+- Real-time route data via composite service API
 
-### 📦 Orders Page
-- List all orders from Order Service
-- Display order details (items, total, status)
-- Order status badges
-- Date information
+### 👤 User Profile
 
-### 🔔 Notifications Page
-- List all notifications from Notification Service
-- Display notification details (type, recipient, message)
-- Status tracking
-- Timestamp information
+- Personal information management (name, home area, preferred departure time)
+- Edit mode with validation and error handling
+- Activity summary (joined routes, active subscriptions)
+- Secure profile updates via authenticated API calls
+
+### 🔐 Authentication System
+
+- Unified login/signup modal with mode switching
+- JWT token-based authentication with session persistence
+- Form validation (email format, password strength, required fields)
+- Password visibility toggle and confirmation matching
+- Integration with Auth & User Service via composite service
 
 ## Project Structure
 
 ```
-web-application/
+columbia-point2point-web/
 ├── public/
 │   └── index.html
 ├── src/
+│   ├── components/
+│   │   ├── AuthModal.jsx        # Login/Signup modal
+│   │   └── AuthModal.css        # Authentication modal styles
+│   ├── contexts/
+│   │   └── AuthContext.js       # Authentication state management
 │   ├── pages/
-│   │   ├── HomePage.js
-│   │   ├── UsersPage.js
-│   │   ├── OrdersPage.js
-│   │   └── NotificationsPage.js
-│   ├── App.js
-│   ├── App.css
-│   ├── index.js
-│   └── index.css
-├── .env.example
-├── package.json
-└── README.md
+│   │   ├── HomePage.jsx         # Main shuttle route interface
+│   │   ├── HomePage.css         # HomePage component styles
+│   │   ├── UserProfile.jsx      # User profile management
+│   │   ├── UserProfile.css      # UserProfile component styles
+│   │   ├── NotificationsPage.js # Legacy - to be removed
+│   │   ├── OrdersPage.js        # Legacy - to be removed
+│   │   └── UsersPage.js         # Legacy - to be removed
+│   ├── services/
+│   │   └── apiService.js        # HTTPS API integration layer
+│   ├── App.js                   # Main application with routing
+│   ├── App.css                  # Global styles and navigation
+│   ├── index.js                 # React application entry point
+│   └── index.css                # Global CSS reset and base styles
+├── env.example                  # Environment variables template
+├── package.json                 # Dependencies and build scripts
+├── DEMO-CREDENTIALS.md          # Test account information
+├── DEPLOYMENT.md                # Cloud deployment guide
+├── STEP3-ROUTE-PROPOSAL.md      # Route proposal feature docs
+├── STEP4-AUTHENTICATION.md      # Authentication system docs
+└── README.md                    # This file
 ```
 
 ## Building for Production
@@ -112,6 +150,7 @@ npm run build
 ### Option 1: Static Hosting (Recommended)
 
 Deploy to:
+
 - **Netlify** - Drag & drop `build/` folder
 - **Vercel** - Import from GitHub
 - **Firebase Hosting** - `firebase deploy`
@@ -142,6 +181,7 @@ sudo nano /etc/nginx/sites-available/default
 ```
 
 Nginx config:
+
 ```nginx
 server {
     listen 80;
@@ -163,6 +203,7 @@ sudo systemctl restart nginx
 ### Option 3: Docker
 
 Create `Dockerfile`:
+
 ```dockerfile
 FROM node:18 AS build
 WORKDIR /app
@@ -179,6 +220,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ```
 
 Create `nginx.conf`:
+
 ```nginx
 server {
     listen 80;
@@ -191,6 +233,7 @@ server {
 ```
 
 Build and run:
+
 ```bash
 docker build -t web-app .
 docker run -p 80:80 web-app
@@ -202,13 +245,15 @@ Make sure your microservices have CORS enabled:
 
 ```javascript
 // In each microservice
-const cors = require('cors');
-app.use(cors({
-  origin: [
-    'http://localhost:3000',           // Development
-    'http://<your-app-domain>.com'     // Production
-  ]
-}));
+const cors = require("cors");
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000", // Development
+      "http://<your-app-domain>.com", // Production
+    ],
+  })
+);
 ```
 
 ## Troubleshooting
@@ -221,6 +266,7 @@ app.use(cors({
 4. **Test endpoints** directly with curl/Postman
 
 Example test:
+
 ```bash
 curl http://localhost:3001/api/users
 curl http://localhost:3002/api/orders
@@ -239,32 +285,69 @@ npm install
 
 Configure your web server to redirect all routes to `index.html` (see Nginx config above)
 
-## Features to Add
+## Future Enhancements
 
-This is a **placeholder application**. Suggested enhancements:
+The following features are planned or in development:
 
-- [ ] User authentication
-- [ ] Create/Edit/Delete operations
-- [ ] Forms for creating users/orders/notifications
-- [ ] Search and filtering
-- [ ] Pagination
-- [ ] Real-time updates (WebSockets)
-- [ ] Dark mode toggle
-- [ ] Charts and analytics
-- [ ] File uploads
-- [ ] Toast notifications
-- [ ] Loading skeletons
-- [ ] Unit tests with Jest
+### 🎫 My Subscription Page (In Development by Teammate)
+
+- [ ] Current semester subscriptions display
+- [ ] Upcoming trip schedules (morning/evening)
+- [ ] Trip cancellation functionality
+- [ ] Subscription status and payment information
+- [ ] Integration with Subscription & Trip Service
+
+### 🔧 Technical Improvements
+
+- [ ] Real-time route updates (WebSockets)
+- [ ] Advanced route search and filtering
+- [ ] Seat availability tracking
+- [ ] Payment integration for subscriptions
+- [ ] Trip history and analytics
+- [ ] Email/SMS notifications for trip updates
+- [ ] Offline support with service workers
+- [ ] Unit tests with Jest and React Testing Library
 - [ ] E2E tests with Cypress
 
-## Development Team Notes
+### 🎨 User Experience Enhancements
 
-- This is a **placeholder/starter application**
-- Focus on adding your own features and functionality
-- The UI uses modern CSS with gradients and animations
-- All pages include error handling and loading states
-- The app is fully responsive (mobile, tablet, desktop)
-- Service URLs are configurable via environment variables
+- [ ] Dark mode toggle
+- [ ] Accessibility improvements (ARIA labels, keyboard navigation)
+- [ ] Progressive Web App (PWA) capabilities
+- [ ] Advanced form validation with real-time feedback
+- [ ] Toast notifications for better user feedback
+- [ ] Loading skeletons for improved perceived performance
+
+## Key Features Implemented
+
+### 🚌 Route Management System
+
+- **Route Proposals**: Comprehensive form for proposing new shuttle routes
+- **Group Formation**: Users can join proposed routes to reach minimum member threshold
+- **Route Filtering**: Filter by all, proposed, or active routes
+- **Route Details**: Schedule, member count, cost estimation, contact information
+
+### 🔐 Authentication & User Management
+
+- **JWT Authentication**: Secure token-based authentication system
+- **Session Persistence**: Maintains login state across browser sessions
+- **Profile Management**: Users can update personal information and preferences
+- **Protected Actions**: Authentication required for route proposals and joining
+
+### 🎨 User Experience
+
+- **Columbia Branding**: Custom blue color scheme matching Columbia University
+- **Responsive Design**: Mobile-first approach with tablet and desktop optimization
+- **Real-time Validation**: Form validation with immediate user feedback
+- **Loading States**: Proper loading indicators and error handling
+- **Text-only Navigation**: Clean, emoji-enhanced navigation buttons
+
+### 🏗️ Architecture & Integration
+
+- **Microservice Ready**: Integrates with composite service architecture
+- **HTTPS API Calls**: Secure communication with backend services
+- **Component Separation**: JSX and CSS files separated for better maintainability
+- **Context API**: Centralized state management for authentication
 
 ## Browser Support
 
@@ -276,6 +359,7 @@ This is a **placeholder application**. Suggested enhancements:
 ## Performance
 
 The app is optimized for performance:
+
 - Code splitting with React Router
 - Production build minification
 - Gzip compression (when served via Nginx)
@@ -290,7 +374,32 @@ npm test        # Run tests
 npm run eject   # Eject from Create React App (careful!)
 ```
 
+## Demo & Testing
+
+### Authentication
+
+Use these test credentials:
+
+- **Email**: `demo@columbia.edu`
+- **Password**: `password`
+
+### Route Features
+
+- Browse existing shuttle routes (Columbia ↔ Flushing, Jersey City, Brooklyn Heights, Astoria)
+- Filter routes by status (All, Proposed, Active)
+- Propose new routes with detailed form validation
+- Join proposed routes (authentication required)
+- Subscribe to active routes (authentication required)
+
+### API Integration
+
+The frontend integrates with the Columbia Point2Point microservice architecture:
+
+- **Composite Service**: Main orchestrator service
+- **Auth & User Service**: User management and authentication
+- **Route & Group Service**: Route proposals and member management
+- **Subscription & Trip Service**: Semester subscriptions and daily trips
+
 ## License
 
-MIT
-
+MIT - Columbia University CS4153 WeCloud Team Project

@@ -13,6 +13,7 @@ function HomePage({
   const [activeFilter, setActiveFilter] = useState('all');
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [proposalForm, setProposalForm] = useState({
+    routeType: 'to-columbia', // 'to-columbia' or 'from-home'
     from: 'Columbia University',
     to: '',
     schedule: {
@@ -50,6 +51,7 @@ function HomePage({
       
       // Reset form and close modal on success
       setProposalForm({
+        routeType: 'to-columbia',
         from: 'Columbia University',
         to: '',
         schedule: {
@@ -73,8 +75,14 @@ function HomePage({
   const validateProposalForm = () => {
     const errors = {};
     
-    if (!proposalForm.to.trim()) {
-      errors.to = 'Destination is required';
+    if (proposalForm.routeType === 'to-columbia') {
+      if (!proposalForm.to.trim()) {
+        errors.to = 'Destination is required';
+      }
+    } else {
+      if (!proposalForm.from.trim()) {
+        errors.from = 'Origin location is required';
+      }
     }
     
     if (!proposalForm.estimatedCost) {
@@ -129,6 +137,23 @@ function HomePage({
       : [...currentDays, day];
     
     handleInputChange('schedule.days', newDays);
+  };
+
+  // Handle route type change
+  const handleRouteTypeChange = (routeType) => {
+    setProposalForm(prev => ({
+      ...prev,
+      routeType,
+      from: routeType === 'to-columbia' ? 'Columbia University' : '',
+      to: routeType === 'from-home' ? 'Columbia University' : ''
+    }));
+    
+    // Clear related errors
+    setFormErrors(prev => ({
+      ...prev,
+      from: undefined,
+      to: undefined
+    }));
   };
   return (
     <div className="home-page">
@@ -267,30 +292,66 @@ function HomePage({
             </div>
             
             <form className="proposal-form" onSubmit={handleProposalSubmit}>
+              {/* Route Type Selection */}
+              <div className="form-section">
+                <h3>Route Type</h3>
+                <div className="route-type-selector">
+                  <label className="route-type-option">
+                    <input
+                      type="radio"
+                      name="routeType"
+                      value="to-columbia"
+                      checked={proposalForm.routeType === 'to-columbia'}
+                      onChange={(e) => handleRouteTypeChange(e.target.value)}
+                    />
+                    <span className="route-type-label">Home → Columbia</span>
+                    <small>Morning commute to campus</small>
+                  </label>
+                  <label className="route-type-option">
+                    <input
+                      type="radio"
+                      name="routeType"
+                      value="from-home"
+                      checked={proposalForm.routeType === 'from-home'}
+                      onChange={(e) => handleRouteTypeChange(e.target.value)}
+                    />
+                    <span className="route-type-label">Columbia → Home</span>
+                    <small>Evening commute from campus</small>
+                  </label>
+                </div>
+              </div>
+              
               {/* Route Details */}
               <div className="form-section">
                 <h3>Route Details</h3>
                 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>From</label>
+                    <label>
+                      {proposalForm.routeType === 'to-columbia' ? 'From (Your Home Area)' : 'From'}
+                    </label>
                     <input
                       type="text"
                       value={proposalForm.from}
                       onChange={(e) => handleInputChange('from', e.target.value)}
-                      className="form-input"
-                      readOnly
+                      className={`form-input ${formErrors.from ? 'error' : ''}`}
+                      placeholder={proposalForm.routeType === 'to-columbia' ? 'e.g., Flushing, Queens' : 'Starting location'}
+                      readOnly={proposalForm.routeType === 'to-columbia'}
                     />
+                    {formErrors.from && <span className="error-text">{formErrors.from}</span>}
                   </div>
                   
                   <div className="form-group">
-                    <label>To *</label>
+                    <label>
+                      {proposalForm.routeType === 'from-home' ? 'To (Your Home Area) *' : 'To *'}
+                    </label>
                     <input
                       type="text"
                       value={proposalForm.to}
                       onChange={(e) => handleInputChange('to', e.target.value)}
                       className={`form-input ${formErrors.to ? 'error' : ''}`}
-                      placeholder="e.g., Flushing, Queens"
+                      placeholder={proposalForm.routeType === 'from-home' ? 'e.g., Flushing, Queens' : 'Destination'}
+                      readOnly={proposalForm.routeType === 'from-home'}
                     />
                     {formErrors.to && <span className="error-text">{formErrors.to}</span>}
                   </div>

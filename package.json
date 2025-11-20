@@ -1,7 +1,7 @@
 {
-  "name": "wecloud-logistics-web",
+  "name": "columbia-point2point-web",
   "version": "1.0.0",
-  "description": "WeCloud Logistics - Web application frontend for microservices architecture",
+  "description": "Columbia Point2Point Semester Shuttle - Frontend for microservices architecture",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
