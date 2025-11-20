@@ -331,7 +331,7 @@ Configure your web server to redirect all routes to `index.html` (see Nginx conf
 
 The following features are planned or in development:
 
-### 🎫 My Subscription Page (In Development by Teammate)
+### 🎫 My Subscription Page
 
 - [ ] Current semester subscriptions display
 - [ ] Upcoming trip schedules (morning/evening)
@@ -347,18 +347,7 @@ The following features are planned or in development:
 - [ ] Payment integration for subscriptions
 - [ ] Trip history and analytics
 - [ ] Email/SMS notifications for trip updates
-- [ ] Offline support with service workers
 - [ ] Unit tests with Jest and React Testing Library
-- [ ] E2E tests with Cypress
-
-### 🎨 User Experience Enhancements
-
-- [ ] Dark mode toggle
-- [ ] Accessibility improvements (ARIA labels, keyboard navigation)
-- [ ] Progressive Web App (PWA) capabilities
-- [ ] Advanced form validation with real-time feedback
-- [ ] Toast notifications for better user feedback
-- [ ] Loading skeletons for improved perceived performance
 
 ## Key Features Implemented
 
