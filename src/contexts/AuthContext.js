@@ -95,14 +95,24 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const updatedUser = await apiService.updateUserProfile(profileData);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      const updatedUser = {
+        ...user,
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        homeArea: profileData.homeArea,
+        preferredDepartureTime: profileData.preferredDepartureTime,
+      };
+
       setUser(updatedUser);
-      return { success: true };
+
+      return { success: true, user: updatedUser };
     } catch (error) {
-      console.error('Profile update failed:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to update profile.' 
+      console.error('Profile update failed (mock):', error);
+      return {
+        success: false,
+        error: 'Failed to update profile.',
       };
     }
   };

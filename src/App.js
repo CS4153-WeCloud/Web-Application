@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 import HomePage from './pages/HomePage.jsx';
 import UserProfile from './pages/UserProfile.jsx';
+import MySubscriptions from './pages/MySubscriptions.jsx';
 import apiService from './services/apiService';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal.jsx';
@@ -273,7 +274,7 @@ function AppContent() {
               />
             } />
             <Route path="/my-routes" element={<div>My Routes - Coming Soon</div>} />
-            <Route path="/subscriptions" element={<div>Subscriptions - Coming Soon</div>} />
+            <Route path="/subscriptions" element={<MySubscriptions />} />
             <Route path="/profile" element={<UserProfile />} />
           </Routes>
         </main>

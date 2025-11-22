@@ -121,6 +121,20 @@ class ShuttleAPIService {
     });
   }
 
+  // DELETE /api/v1/subscriptions/{id} - Cancel semester subscription
+  async cancelSubscription(id) {
+    console.log('Mock cancel subscription:', id);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return { success: true };
+  }
+
+  // DELETE /api/v1/trip-bookings/{id} - Cancel a specific trip booking
+  async cancelTripBooking(bookingId) {
+    console.log('Mock cancel trip booking:', bookingId);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return { success: true };
+  }
+
   /**
    * Authentication API - Delegated to Auth & User Service
    */
@@ -257,6 +271,56 @@ class ShuttleAPIService {
       joinedRoutes: [1, 3],
       activeSubscriptions: [2],
       memberSince: '2024-09-01'
+    };
+  }
+
+  // MOCK: /api/v1/me/semester-overview - for front-end demo
+  async mockGetSemesterOverview() {
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    return {
+      subscriptions: [
+        {
+          id: 1,
+          status: 'ACTIVE',
+          route: {
+            from: 'Columbia University',
+            to: 'Flushing, Queens',
+            schedule: 'Weekdays 8:00 AM / 6:30 PM',
+            semester: 'Fall 2025'
+          }
+        },
+        {
+          id: 2,
+          status: 'CANCELLED',
+          route: {
+            from: 'Columbia University',
+            to: 'Jersey City, NJ',
+            schedule: 'Weekdays 7:45 AM / 6:15 PM',
+            semester: 'Fall 2025'
+          }
+        }
+      ],
+      upcomingTrips: [
+        {
+          bookingId: 101,
+          type: 'MORNING',
+          date: '2025-09-15',
+          route: {
+            from: 'Columbia University',
+            to: 'Flushing, Queens'
+          }
+        },
+        {
+          bookingId: 102,
+          type: 'EVENING',
+          date: '2025-09-15',
+          route: {
+            from: 'Columbia University',
+            to: 'Flushing, Queens'
+          }
+        }
+      ]
     };
   }
 
