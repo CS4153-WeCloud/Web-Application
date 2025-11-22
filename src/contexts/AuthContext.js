@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import apiService from '../services/apiService';
 
+// Create a React context for auth state
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -19,7 +20,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Auth status: whether user is logged in
 
   useEffect(() => {
     // Check if user is already logged in (e.g., from localStorage or session)

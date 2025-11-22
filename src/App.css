@@ -247,42 +247,38 @@
   text-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Signup button now inherits from unified nav button styling above */
-
-/* Text-only navigation button base styles - handled above in unified styling */
-
-/* All navigation buttons should have identical text-only styling */
+/* Nav Menu Button and Link Styles */
 .nav-menu .nav-item button.nav-link,
 .nav-menu .nav-item button.signup-btn,
 .nav-menu .nav-item .nav-link,
 .nav-menu .nav-item .logout-btn {
-  background: none !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0.75rem 1rem !important;
-  font-weight: 600 !important;
-  transition: all 0.3s ease !important;
-  cursor: pointer !important;
-  font-size: 1rem !important;
-  text-align: left !important;
-  min-width: auto !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 0.5rem !important;
-  text-decoration: none !important;
+  background: none;
+  color: white;
+  border: none;
+  border-radius: 0;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  font-size: 1rem;
+  text-align: left;
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
 }
 
 .nav-menu .nav-item button.nav-link:hover,
 .nav-menu .nav-item button.signup-btn:hover,
 .nav-menu .nav-item .nav-link:hover,
 .nav-menu .nav-item .logout-btn:hover {
-  background: none !important;
-  color: #f0f9ff !important;
-  border: none !important;
-  transform: translateY(-2px) !important;
-  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.3) !important;
-  box-shadow: none !important;
+  background: none;
+  color: #f0f9ff;
+  border: none;
+  transform: translateY(-2px);
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
+  box-shadow: none;
 }
 
 /* Form Styles for Auth Modal */

@@ -2,10 +2,6 @@
 
 React-based web application for the Columbia Point2Point Semester Shuttle service, integrating with microservices architecture.
 
-## Demo of the Page on Google Cloud VM
-
-Access this URL for the demo video: https://drive.google.com/file/d/18by95S6iBg8_qLioCvhKD2ylgRO5PMv9/view?usp=drive_link
-
 ## Features
 
 - ✅ Modern React 18 with Hooks & Context API
