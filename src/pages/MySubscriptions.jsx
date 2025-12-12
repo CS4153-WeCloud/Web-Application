@@ -24,19 +24,54 @@ function MySubscriptions() {
         setLoading(true);
         setError('');
 
-        let overview;
+        // Try to get subscriptions from real API
+        let subs = [];
+        let trips = [];
+        
         try {
-          overview = await apiService.getSemesterOverview();
+          // Get user's subscriptions
+          const subsResult = await apiService.getSubscriptions({ userId: user?.id || 1 });
+          subs = subsResult.subscriptions || [];
+          console.log('Subscriptions loaded:', subs);
+          
+          // Get user's trips
+          try {
+            const tripsResult = await apiService.getTrips({ userId: user?.id || 1 });
+            trips = tripsResult.data || tripsResult.trips || [];
+            console.log('Trips loaded:', trips);
+          } catch (tripError) {
+            console.warn('Failed to load trips:', tripError);
+          }
+          
+          // Enrich subscriptions with route data
+          for (let sub of subs) {
+            if (sub.routeId && !sub.route?.from) {
+              try {
+                const routeData = await apiService.getRoute(sub.routeId);
+                sub.route = {
+                  from: routeData.from || routeData.from_location || 'Columbia University',
+                  to: routeData.to || routeData.to_location || 'Unknown',
+                  schedule: routeData.schedule || `${routeData.morningTime || '08:00'} / ${routeData.eveningTime || '18:00'}`,
+                  semester: routeData.semester || sub.semester
+                };
+              } catch (routeError) {
+                console.warn(`Failed to load route ${sub.routeId}:`, routeError);
+              }
+            }
+          }
         } catch (e) {
-          console.warn('Real API failed, using mock instead');
-          overview = await apiService.mockGetSemesterOverview();
+          console.warn('Real API failed, using mock instead:', e);
+          const overview = await apiService.mockGetSemesterOverview();
+          subs = overview.subscriptions || [];
+          trips = overview.upcomingTrips || [];
         }
 
-        const subs = overview.subscriptions || [];
-        const trips = overview.upcomingTrips || [];
-
         setSubscriptions(subs);
-        setUpcomingTrips(trips);
+        setUpcomingTrips(trips.map(trip => ({
+          ...trip,
+          bookingId: trip.bookingId || trip.id,
+          route: trip.route || { from: 'Columbia University', to: 'Loading...' }
+        })));
       } catch (e) {
         console.error(e);
         setError('Failed to load subscriptions.');
@@ -46,7 +81,7 @@ function MySubscriptions() {
     };
 
     loadData();
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, user]);
 
   const handleCancelSubscription = async (id) => {
     if (!window.confirm('Cancel this semester subscription?')) return;

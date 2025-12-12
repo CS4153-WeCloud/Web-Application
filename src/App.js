@@ -45,29 +45,23 @@ function AppContent() {
     setLoading(true);
     try {
       // Use the API service to call the composite microservice
-      // This demonstrates proper HTTPS API integration
-      const data = await apiService.getMockRoutes(); // In production: apiService.getRoutes()
+      console.log('Fetching routes from Composite Service...');
+      const data = await apiService.getRoutes();
       
-      setRoutes(data.routes);
+      setRoutes(data.routes || []);
       console.log('Routes fetched from composite service:', data);
     } catch (error) {
       console.error('Failed to fetch routes from composite service:', error);
       
-      // Fallback to basic mock data if API fails
-      const fallbackRoutes = [
-        {
-          id: 1,
-          from: 'Columbia University',
-          to: 'Flushing, Queens',
-          status: 'proposed',
-          schedule: 'Weekdays 8:00 AM / 6:30 PM',
-          semester: 'Fall 2025',
-          currentMembers: 8,
-          requiredMembers: 15,
-          daysLeft: 5
-        }
-      ];
-      setRoutes(fallbackRoutes);
+      // Fallback to mock data if API fails
+      try {
+        console.log('Falling back to mock data...');
+        const mockData = await apiService.getMockRoutes();
+        setRoutes(mockData.routes || []);
+      } catch (mockError) {
+        console.error('Mock data also failed:', mockError);
+        setRoutes([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -86,21 +80,25 @@ function AppContent() {
     try {
       // Call composite service via HTTPS API
       console.log(`Calling composite service to join route ${routeId}`);
-      // await apiService.joinRoute(routeId); // In production
+      const result = await apiService.joinRoute(routeId, user?.id || 1);
+      console.log('Join route result:', result);
       
-      // Update local state for demo
+      // Update local state to reflect the join
       setRoutes(prevRoutes => 
         prevRoutes.map(route => 
           route.id === routeId 
-            ? { ...route, currentMembers: route.currentMembers + 1 }
+            ? { ...route, currentMembers: (route.currentMembers || 0) + 1 }
             : route
         )
       );
       
-      alert('Successfully joined the route via composite service!');
+      alert('Successfully joined the route!');
+      
+      // Refresh routes to get latest data from server
+      fetchRoutes();
     } catch (error) {
       console.error('Failed to join route via composite service:', error);
-      alert('Failed to join route. Please try again.');
+      alert(`Failed to join route: ${error.message}`);
     }
   };
 
@@ -117,21 +115,29 @@ function AppContent() {
     try {
       // Call composite service via HTTPS API
       console.log(`Calling composite service to subscribe to route ${routeId}`);
-      // await apiService.createSubscription({ routeId }); // In production
+      const result = await apiService.createSubscription({ 
+        userId: user?.id || 1,
+        routeId: routeId,
+        semester: 'Fall 2025'
+      });
+      console.log('Subscription result:', result);
       
-      // Update local state for demo
+      // Update local state to reflect the subscription
       setRoutes(prevRoutes => 
         prevRoutes.map(route => 
           route.id === routeId 
-            ? { ...route, availableSeats: Math.max(0, route.availableSeats - 1) }
+            ? { ...route, availableSeats: Math.max(0, (route.availableSeats || 1) - 1) }
             : route
         )
       );
       
-      alert('Successfully subscribed to the route via composite service!');
+      alert('Successfully subscribed to the route!');
+      
+      // Refresh routes to get latest data from server
+      fetchRoutes();
     } catch (error) {
       console.error('Failed to subscribe via composite service:', error);
-      alert('Failed to subscribe to route. Please try again.');
+      alert(`Failed to subscribe to route: ${error.message}`);
     }
   };
 
@@ -164,40 +170,18 @@ function AppContent() {
     try {
       console.log('Submitting route proposal to composite service:', proposalData);
       
-      // In production, this would call:
-      // const result = await apiService.createRoute(proposalData);
+      // Call the Composite Service API
+      const result = await apiService.createRoute(proposalData, user?.id || 1);
+      console.log('Route creation result:', result);
       
-      // Create new route object for demo
-      const newRoute = {
-        id: routes.length + 1,
-        from: proposalData.from,
-        to: proposalData.to,
-        status: 'proposed',
-        schedule: `${proposalData.schedule.days.join(', ')} ${proposalData.schedule.morningTime} / ${proposalData.schedule.eveningTime}`,
-        semester: proposalData.semester,
-        currentMembers: 1, // Proposer is automatically first member
-        requiredMembers: 15, // Default requirement
-        daysLeft: 30, // Default proposal period
-        estimatedCost: proposalData.estimatedCost,
-        description: proposalData.description,
-        links: {
-          self: `/routes/${routes.length + 1}`,
-          members: `/routes/${routes.length + 1}/members`,
-          join: `/routes/${routes.length + 1}/join`
-        }
-      };
+      alert('Route proposal submitted successfully!');
       
-      // Add to routes list
-      setRoutes(prevRoutes => [newRoute, ...prevRoutes]);
-      
-      alert('Route proposal submitted successfully! You are now the first member.');
-      
-      // Refresh routes to get latest data
-      // await fetchRoutes(); // Uncomment for production
+      // Refresh routes to get latest data from server
+      await fetchRoutes();
       
     } catch (error) {
       console.error('Failed to submit route proposal:', error);
-      alert('Failed to submit route proposal. Please try again.');
+      alert(`Failed to submit route proposal: ${error.message}`);
       throw error; // Re-throw so modal can handle it
     }
   };

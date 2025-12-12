@@ -29,16 +29,15 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        // Validate token with composite service
-        const userProfile = await apiService.mockGetUserProfile(); // Use mock for demo
-        setUser(userProfile);
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
         setIsAuthenticated(true);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
     } finally {
       setLoading(false);
     }
@@ -47,19 +46,40 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setLoading(true);
-      const response = await apiService.mockLogin(credentials); // Use mock for demo
       
-      // Store token and user data
-      localStorage.setItem('authToken', response.token);
-      setUser(response.user);
-      setIsAuthenticated(true);
+      // Try to find user by email in the real API
+      const response = await apiService.getUserByEmail(credentials.email);
       
-      return { success: true };
+      if (response && response.id) {
+        // User found - store in localStorage
+        const userData = {
+          id: response.id,
+          email: response.email,
+          firstName: response.firstName || response.first_name || '',
+          lastName: response.lastName || response.last_name || '',
+          homeArea: response.homeArea || response.home_area || '',
+          preferredDepartureTime: response.preferredDepartureTime || '08:00'
+        };
+        
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: 'User not found. Please sign up first.' 
+        };
+      }
     } catch (error) {
       console.error('Login failed:', error);
+      // Ensure error is always a string
+      const errorMsg = typeof error === 'string' ? error : 
+                       (error?.message || 'Login failed. Please check your credentials.');
       return { 
         success: false, 
-        error: error.message || 'Login failed. Please check your credentials.' 
+        error: errorMsg
       };
     } finally {
       setLoading(false);
@@ -69,19 +89,45 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     try {
       setLoading(true);
-      const response = await apiService.mockSignup(userData); // Use mock for demo
       
-      // Auto-login after successful signup
-      localStorage.setItem('authToken', response.token);
-      setUser(response.user);
-      setIsAuthenticated(true);
+      // Create user via real API
+      const response = await apiService.createUser({
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        homeArea: userData.homeArea,
+        preferredDepartureTime: userData.preferredDepartureTime
+      });
       
-      return { success: true };
+      if (response && (response.id || response.userId)) {
+        const newUser = {
+          id: response.id || response.userId,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          homeArea: userData.homeArea,
+          preferredDepartureTime: userData.preferredDepartureTime
+        };
+        
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setUser(newUser);
+        setIsAuthenticated(true);
+        
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: 'Failed to create account.' 
+        };
+      }
     } catch (error) {
       console.error('Signup failed:', error);
+      // Ensure error is always a string
+      const errorMsg = typeof error === 'string' ? error : 
+                       (error?.message || 'Signup failed. Please try again.');
       return { 
         success: false, 
-        error: error.message || 'Signup failed. Please try again.' 
+        error: errorMsg
       };
     } finally {
       setLoading(false);
@@ -89,7 +135,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
   };
