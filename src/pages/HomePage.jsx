@@ -8,7 +8,10 @@ function HomePage({
   onJoinRoute,       // Handler for joining a route
   onSubscribeRoute,  // Handler for subscribing to route updates
   onProposeRoute,    // Handler for proposing a new route
-  onRefreshRoutes    // Handler for refreshing route data
+  onRefreshRoutes,   // Handler for refreshing route data
+  currentUser,       // Current logged in user
+  userJoinedRouteIds, // IDs of routes user has joined (route_members)
+  userSubscriptions  // User's active subscriptions
 }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -255,20 +258,38 @@ function HomePage({
                     </div>
                   </div>
                   {route.status === 'proposed' ? (
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => onJoinRoute(route.id)}
-                    >
-                      Join Route
-                    </button>
+                    // For proposed routes: Join to become a member
+                    currentUser && parseInt(route.createdBy, 10) === currentUser.id ? (
+                      <button className="btn btn-disabled" disabled>
+                        ✓ Your Route
+                      </button>
+                    ) : userJoinedRouteIds?.includes(route.id) ? (
+                      <button className="btn btn-disabled" disabled>
+                        ✓ Joined
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => onJoinRoute(route.id)}
+                      >
+                        Join Route
+                      </button>
+                    )
                   ) : (
-                    <button 
-                      className="btn btn-success"
-                      onClick={() => onSubscribeRoute(route.id)}
-                      disabled={route.availableSeats === 0}
-                    >
-                      {route.availableSeats === 0 ? 'Full' : 'Subscribe'}
-                    </button>
+                    // For active routes: Subscribe to get a semester pass
+                    userSubscriptions?.some(s => s.routeId === route.id && (s.status === 'active' || s.status === 'ACTIVE')) ? (
+                      <button className="btn btn-disabled" disabled>
+                        ✓ Subscribed
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn btn-success"
+                        onClick={() => onSubscribeRoute(route.id)}
+                        disabled={route.availableSeats === 0}
+                      >
+                        {route.availableSeats === 0 ? 'Full' : 'Subscribe'}
+                      </button>
+                    )
                   )}
                 </div>
               ))

@@ -3,7 +3,7 @@
  * Manages user authentication state and integrates with Auth & User Service via composite service
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 
 // Create a React context for auth state
@@ -21,24 +21,66 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Auth status: whether user is logged in
+  const [oauthMessage, setOauthMessage] = useState(null); // OAuth status message
+
+  // Handle OAuth callback from URL parameters
+  const handleOAuthCallback = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthStatus = urlParams.get('oauth');
+    
+    if (oauthStatus === 'success') {
+      const token = urlParams.get('token');
+      const userDataStr = urlParams.get('user');
+      
+      if (token && userDataStr) {
+        try {
+          const userData = JSON.parse(decodeURIComponent(userDataStr));
+          
+          // Store token and user data
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(userData));
+          
+          setUser(userData);
+          setIsAuthenticated(true);
+          setOauthMessage({ type: 'success', text: `Welcome, ${userData.firstName || userData.email}! You are now logged in.` });
+          
+          // Clean up URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          console.log('OAuth login successful:', userData);
+        } catch (error) {
+          console.error('Failed to parse OAuth user data:', error);
+          setOauthMessage({ type: 'error', text: 'Login failed. Please try again.' });
+        }
+      }
+    } else if (oauthStatus === 'error') {
+      const errorMessage = urlParams.get('message') || 'Authentication failed';
+      setOauthMessage({ type: 'error', text: decodeURIComponent(errorMessage) });
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
-    // Check if user is already logged in (e.g., from localStorage or session)
+    // First check for OAuth callback in URL
+    handleOAuthCallback();
+    
+    // Then check if user is already logged in (e.g., from localStorage or session)
     checkAuthStatus();
-  }, []);
+  }, [handleOAuthCallback]);
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        // Validate token with composite service
-        const userProfile = await apiService.mockGetUserProfile(); // Use mock for demo
-        setUser(userProfile);
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
         setIsAuthenticated(true);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
     } finally {
       setLoading(false);
     }
@@ -47,19 +89,40 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setLoading(true);
-      const response = await apiService.mockLogin(credentials); // Use mock for demo
       
-      // Store token and user data
-      localStorage.setItem('authToken', response.token);
-      setUser(response.user);
-      setIsAuthenticated(true);
+      // Try to find user by email in the real API
+      const response = await apiService.getUserByEmail(credentials.email);
       
-      return { success: true };
+      if (response && response.id) {
+        // User found - store in localStorage
+        const userData = {
+          id: response.id,
+          email: response.email,
+          firstName: response.firstName || response.first_name || '',
+          lastName: response.lastName || response.last_name || '',
+          homeArea: response.homeArea || response.home_area || '',
+          preferredDepartureTime: response.preferredDepartureTime || '08:00'
+        };
+        
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: 'User not found. Please sign up first.' 
+        };
+      }
     } catch (error) {
       console.error('Login failed:', error);
+      // Ensure error is always a string
+      const errorMsg = typeof error === 'string' ? error : 
+                       (error?.message || 'Login failed. Please check your credentials.');
       return { 
         success: false, 
-        error: error.message || 'Login failed. Please check your credentials.' 
+        error: errorMsg
       };
     } finally {
       setLoading(false);
@@ -69,19 +132,45 @@ export const AuthProvider = ({ children }) => {
   const signup = async (userData) => {
     try {
       setLoading(true);
-      const response = await apiService.mockSignup(userData); // Use mock for demo
       
-      // Auto-login after successful signup
-      localStorage.setItem('authToken', response.token);
-      setUser(response.user);
-      setIsAuthenticated(true);
+      // Create user via real API
+      const response = await apiService.createUser({
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        homeArea: userData.homeArea,
+        preferredDepartureTime: userData.preferredDepartureTime
+      });
       
-      return { success: true };
+      if (response && (response.id || response.userId)) {
+        const newUser = {
+          id: response.id || response.userId,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          homeArea: userData.homeArea,
+          preferredDepartureTime: userData.preferredDepartureTime
+        };
+        
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setUser(newUser);
+        setIsAuthenticated(true);
+        
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: 'Failed to create account.' 
+        };
+      }
     } catch (error) {
       console.error('Signup failed:', error);
+      // Ensure error is always a string
+      const errorMsg = typeof error === 'string' ? error : 
+                       (error?.message || 'Signup failed. Please try again.');
       return { 
         success: false, 
-        error: error.message || 'Signup failed. Please try again.' 
+        error: errorMsg
       };
     } finally {
       setLoading(false);
@@ -89,23 +178,38 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
     setUser(null);
     setIsAuthenticated(false);
   };
 
   const updateProfile = async (profileData) => {
     try {
-      const updatedUser = await apiService.updateUserProfile(profileData);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      const updatedUser = {
+        ...user,
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        homeArea: profileData.homeArea,
+        preferredDepartureTime: profileData.preferredDepartureTime,
+      };
+
       setUser(updatedUser);
-      return { success: true };
+
+      return { success: true, user: updatedUser };
     } catch (error) {
-      console.error('Profile update failed:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to update profile.' 
+      console.error('Profile update failed (mock):', error);
+      return {
+        success: false,
+        error: 'Failed to update profile.',
       };
     }
+  };
+
+  // Clear OAuth message
+  const clearOauthMessage = () => {
+    setOauthMessage(null);
   };
 
   const value = {
@@ -116,7 +220,9 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     updateProfile,
-    checkAuthStatus
+    checkAuthStatus,
+    oauthMessage,
+    clearOauthMessage
   };
 
   return (

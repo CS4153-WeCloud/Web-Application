@@ -3,7 +3,7 @@
  * Displays and allows editing of user profile information
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './UserProfile.css';
 
@@ -17,6 +17,18 @@ const UserProfile = () => {
     preferredDepartureTime: user?.preferredDepartureTime || '08:00'
   });
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        homeArea: user.homeArea || '',
+        preferredDepartureTime: user.preferredDepartureTime || '08:00'
+      });
+    }
+  }, [user]);
+
 
   const handleInputChange = (field, value) => {
     setProfileData(prev => ({
@@ -47,6 +59,14 @@ const UserProfile = () => {
 
     const result = await updateProfile(profileData);
     if (result.success) {
+      const updated = result.user;
+      setProfileData({
+        firstName: updated.firstName || '',
+        lastName: updated.lastName || '',
+        homeArea: updated.homeArea || '',
+        preferredDepartureTime: updated.preferredDepartureTime || '08:00',
+      });
+
       setEditing(false);
       setErrors({});
     } else {

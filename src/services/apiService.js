@@ -5,32 +5,49 @@
 
 class ShuttleAPIService {
   constructor() {
-    this.baseURL = process.env.REACT_APP_COMPOSITE_SERVICE_URL || 'https://composite-service-demo.columbia-shuttle.com';
-    this.apiVersion = process.env.REACT_APP_API_VERSION || 'v1';
+    // Use real Composite Service URL
+    this.baseURL = process.env.REACT_APP_COMPOSITE_SERVICE_URL || 'https://composite-service-1081353560639.us-central1.run.app';
   }
 
   /**
    * Generic HTTP request handler with error handling
    */
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}/api/${this.apiVersion}${endpoint}`;
+    const url = `${this.baseURL}/api${endpoint}`;
+    
+    // Get JWT token from localStorage
+    const token = localStorage.getItem('token');
     
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
       },
       ...options,
     };
 
     try {
+      console.log(`API Request: ${options.method || 'GET'} ${url}`);
       const response = await fetch(url, config);
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Get response text first
+      const responseText = await response.text();
+      
+      // Try to parse as JSON
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { message: responseText };
       }
       
-      return await response.json();
+      if (!response.ok) {
+        console.error(`API Error ${response.status}:`, data);
+        throw new Error(data.message || data.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return data;
     } catch (error) {
       console.error(`API Request failed for ${endpoint}:`, error);
       throw error;
@@ -41,19 +58,58 @@ class ShuttleAPIService {
    * Routes API - Composite Service Endpoints
    */
   
-  // GET /api/v1/routes - Get all routes with pagination
+  // GET /api/routes - Get all routes with pagination
   async getRoutes(params = {}) {
-    const queryString = new URLSearchParams({
-      page: params.page || 1,
-      page_size: params.pageSize || 20,
-      status: params.status || 'all',
-      ...params
-    }).toString();
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.set('page', params.page);
+    if (params.pageSize) queryParams.set('page_size', params.pageSize);
+    if (params.status && params.status !== 'all') queryParams.set('status', params.status);
     
-    return this.request(`/routes?${queryString}`);
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/routes?${queryString}` : '/routes';
+    
+    const response = await this.request(endpoint);
+    
+    // Normalize the response to handle different API formats
+    const routes = response.routes || response.data || [];
+    return {
+      routes: routes.map(route => {
+        // Format schedule - handle both string and object formats
+        let scheduleStr = '';
+        if (typeof route.schedule === 'string') {
+          scheduleStr = route.schedule;
+        } else if (route.schedule && typeof route.schedule === 'object') {
+          const days = Array.isArray(route.schedule.days) ? route.schedule.days.join(', ') : '';
+          const morning = route.schedule.morningTime || '08:00';
+          const evening = route.schedule.eveningTime || '18:00';
+          scheduleStr = `${days} ${morning} / ${evening}`;
+        } else {
+          scheduleStr = `${route.morningTime || '08:00'} / ${route.eveningTime || '18:00'}`;
+        }
+        
+        return {
+          id: route.id,
+          from: route.from || route.from_location || 'Unknown',
+          to: route.to || route.to_location || 'Unknown',
+          status: route.status || 'proposed',
+          schedule: scheduleStr,
+          semester: route.semester || 'Fall 2025',
+          currentMembers: route.currentMembers || route.current_members || 0,
+          requiredMembers: route.requiredMembers || route.required_members || 15,
+          availableSeats: route.availableSeats || Math.max(0, (route.requiredMembers || 15) - (route.currentMembers || 0)),
+          daysLeft: route.daysLeft || 30,
+          estimatedCost: route.estimatedCost || route.estimated_cost || 0,
+          description: route.description || '',
+          createdBy: route.createdBy || route.created_by,
+          createdAt: route.createdAt || route.created_at,
+          links: route.links || {}
+        };
+      }),
+      pagination: response.pagination || {}
+    };
   }
 
-  // GET /api/v1/routes/{id} - Get route details with ETag support
+  // GET /api/routes/{id} - Get route details with ETag support
   async getRoute(routeId, etag = null) {
     const headers = {};
     if (etag) {
@@ -63,8 +119,31 @@ class ShuttleAPIService {
     return this.request(`/routes/${routeId}`, { headers });
   }
 
-  // POST /api/v1/routes - Create new route proposal
-  async createRoute(routeData) {
+  // GET /api/routes/user/{userId} - Get routes user has joined (as member)
+  async getUserJoinedRoutes(userId) {
+    const response = await this.request(`/routes/user/${userId}`);
+    const routes = response.routes || [];
+    return {
+      routes: routes.map(route => ({
+        id: route.id,
+        from: route.from || route.from_location || 'Unknown',
+        to: route.to || route.to_location || 'Unknown',
+        status: route.status || 'proposed',
+        schedule: route.schedule,
+        semester: route.semester || 'Fall 2025',
+        currentMembers: route.currentMembers || route.current_members || 0,
+        requiredMembers: route.requiredMembers || route.required_members || 15,
+        estimatedCost: route.estimatedCost || route.estimated_cost || 0,
+        description: route.description || '',
+        createdBy: route.createdBy || route.created_by,
+        createdAt: route.createdAt || route.created_at
+      })),
+      totalRoutes: response.totalRoutes || routes.length
+    };
+  }
+
+  // POST /api/routes - Create new route proposal
+  async createRoute(routeData, userId) {
     return this.request('/routes', {
       method: 'POST',
       body: JSON.stringify({
@@ -72,22 +151,35 @@ class ShuttleAPIService {
         to: routeData.to,
         schedule: {
           days: routeData.schedule.days,
-          morning_time: routeData.schedule.morningTime,
-          evening_time: routeData.schedule.eveningTime
+          morningTime: routeData.schedule.morningTime,
+          eveningTime: routeData.schedule.eveningTime
         },
         semester: routeData.semester,
-        estimated_cost_per_person: parseFloat(routeData.estimatedCost),
-        description: routeData.description,
-        contact_info: routeData.contactInfo,
-        proposer_id: 'current_user' // Would be from auth context in production
+        estimatedCost: parseFloat(routeData.estimatedCost) || 100,
+        description: routeData.description || '',
+        requiredMembers: 15,
+        createdBy: userId || 1
       }),
     });
   }
 
-  // POST /api/v1/routes/{id}/join - Join a proposed route
-  async joinRoute(routeId) {
+  // POST /api/routes/{id}/join - Join a proposed route
+  async joinRoute(routeId, userId) {
     return this.request(`/routes/${routeId}/join`, {
       method: 'POST',
+      body: JSON.stringify({
+        userId: userId || 1
+      }),
+    });
+  }
+
+  // DELETE /api/routes/{id}/leave - Leave a route (removes from route_members)
+  async leaveRoute(routeId, userId) {
+    return this.request(`/routes/${routeId}/leave`, {
+      method: 'DELETE',
+      body: JSON.stringify({
+        userId: userId || 1
+      }),
     });
   }
 
@@ -107,91 +199,124 @@ class ShuttleAPIService {
    * Subscriptions API - Semester subscriptions to active routes
    */
   
-  // GET /api/v1/subscriptions - Get user's subscriptions
+  // GET /api/subscriptions - Get user's subscriptions
   async getSubscriptions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/subscriptions?${queryString}`);
+    const endpoint = queryString ? `/subscriptions?${queryString}` : '/subscriptions';
+    const response = await this.request(endpoint);
+    
+    // Normalize response
+    const subscriptions = response.data || response.subscriptions || [];
+    return {
+      subscriptions: subscriptions.map(sub => ({
+        id: sub.id,
+        userId: sub.userId || sub.user_id,
+        routeId: sub.routeId || sub.route_id,
+        status: sub.status,
+        semester: sub.semester,
+        route: sub.route || {
+          from: 'Columbia University',
+          to: 'Loading...',
+          schedule: 'Loading...',
+          semester: sub.semester
+        }
+      })),
+      pagination: response.pagination || {}
+    };
   }
 
-  // POST /api/v1/subscriptions - Create semester subscription
+  // GET /api/subscriptions/user/{userId} - Get user's subscriptions
+  async getUserSubscriptions(userId) {
+    return this.request(`/subscriptions?userId=${userId}`);
+  }
+
+  // POST /api/subscriptions - Create semester subscription
   async createSubscription(subscriptionData) {
     return this.request('/subscriptions', {
       method: 'POST',
-      body: JSON.stringify(subscriptionData),
-    });
-  }
-
-  /**
-   * Authentication API - Delegated to Auth & User Service
-   */
-  
-  // POST /api/v1/auth/login - User login
-  async login(credentials) {
-    return this.request('/auth/login', {
-      method: 'POST',
       body: JSON.stringify({
-        email: credentials.email,
-        password: credentials.password
+        userId: subscriptionData.userId || 1,
+        routeId: subscriptionData.routeId,
+        semester: subscriptionData.semester || 'Fall 2025'
       }),
     });
   }
 
-  // POST /api/v1/auth/signup - User registration
-  async signup(userData) {
-    return this.request('/auth/signup', {
+  // POST /api/subscriptions/{id}/cancel - Cancel semester subscription
+  async cancelSubscription(id) {
+    return this.request(`/subscriptions/${id}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Trips API
+   */
+
+  // GET /api/trips - Get trips
+  async getTrips(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/trips?${queryString}` : '/trips';
+    return this.request(endpoint);
+  }
+
+  // POST /api/trips - Create a trip
+  async createTrip(tripData) {
+    return this.request('/trips', {
+      method: 'POST',
+      body: JSON.stringify(tripData),
+    });
+  }
+
+  // POST /api/trips/{id}/cancel - Cancel a trip (async 202)
+  async cancelTripBooking(tripId) {
+    return this.request(`/trips/${tripId}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * User API - User management
+   */
+  
+  // GET /api/users?email=xxx - Find user by email
+  async getUserByEmail(email) {
+    const response = await this.request(`/users?email=${encodeURIComponent(email)}`);
+    // Response could be array or object with data array
+    const users = response.data || response.users || response;
+    if (Array.isArray(users) && users.length > 0) {
+      return users[0];
+    }
+    return null;
+  }
+
+  // GET /api/users/{id} - Get user by ID
+  async getUser(userId) {
+    return this.request(`/users/${userId}`);
+  }
+
+  // POST /api/users - Create new user
+  async createUser(userData) {
+    return this.request('/users', {
       method: 'POST',
       body: JSON.stringify({
         email: userData.email,
-        password: userData.password,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        home_area: userData.homeArea,
-        preferred_departure_time: userData.preferredDepartureTime
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        homeArea: userData.homeArea || 'New York',
+        preferredDepartureTime: userData.preferredDepartureTime || '08:00',
+        role: 'student',
+        status: 'active'
       }),
     });
   }
 
-  // POST /api/v1/auth/logout - User logout
-  async logout() {
-    return this.request('/auth/logout', {
-      method: 'POST',
-    });
-  }
-
-  /**
-   * User Profile API - Delegated to Auth Service
-   */
-  
-  // GET /api/v1/me/profile - Get user profile
-  async getUserProfile() {
-    const token = localStorage.getItem('authToken');
-    return this.request('/me/profile', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-  }
-
-  // PUT /api/v1/me/profile - Update user profile
-  async updateUserProfile(profileData) {
-    const token = localStorage.getItem('authToken');
-    return this.request('/me/profile', {
+  // PUT /api/users/{id} - Update user profile
+  async updateUser(userId, profileData) {
+    return this.request(`/users/${userId}`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(profileData),
     });
-  }
-
-  // GET /api/v1/me/semester-overview - Get semester overview (parallel execution)
-  async getSemesterOverview() {
-    return this.request('/me/semester-overview');
-  }
-
-  // GET /api/v1/me/today-trips - Get today's trip information
-  async getTodayTrips() {
-    return this.request('/me/today-trips');
   }
 
   /**
@@ -257,6 +382,56 @@ class ShuttleAPIService {
       joinedRoutes: [1, 3],
       activeSubscriptions: [2],
       memberSince: '2024-09-01'
+    };
+  }
+
+  // MOCK: /api/v1/me/semester-overview - for front-end demo
+  async mockGetSemesterOverview() {
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    return {
+      subscriptions: [
+        {
+          id: 1,
+          status: 'ACTIVE',
+          route: {
+            from: 'Columbia University',
+            to: 'Flushing, Queens',
+            schedule: 'Weekdays 8:00 AM / 6:30 PM',
+            semester: 'Fall 2025'
+          }
+        },
+        {
+          id: 2,
+          status: 'CANCELLED',
+          route: {
+            from: 'Columbia University',
+            to: 'Jersey City, NJ',
+            schedule: 'Weekdays 7:45 AM / 6:15 PM',
+            semester: 'Fall 2025'
+          }
+        }
+      ],
+      upcomingTrips: [
+        {
+          bookingId: 101,
+          type: 'MORNING',
+          date: '2025-09-15',
+          route: {
+            from: 'Columbia University',
+            to: 'Flushing, Queens'
+          }
+        },
+        {
+          bookingId: 102,
+          type: 'EVENING',
+          date: '2025-09-15',
+          route: {
+            from: 'Columbia University',
+            to: 'Flushing, Queens'
+          }
+        }
+      ]
     };
   }
 
