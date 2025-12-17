@@ -8,72 +8,82 @@ function MyRoutes() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [myRoutes, setMyRoutes] = useState([]);
+  const [joinedRoutes, setJoinedRoutes] = useState([]);
   const [proposedRoutes, setProposedRoutes] = useState([]);
+
+  const loadData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+
+      // Get user's ACTIVE subscriptions only
+      const subsResult = await apiService.getSubscriptions({ userId: user.id });
+      const allSubscriptions = subsResult.subscriptions || subsResult.data || [];
+      
+      // Only consider active subscriptions
+      const activeSubscriptions = allSubscriptions.filter(
+        sub => sub.status === 'active' || sub.status === 'ACTIVE'
+      );
+      
+      // Get all routes
+      const routesResult = await apiService.getRoutes();
+      const allRoutes = routesResult.routes || [];
+      
+      // Filter routes user has ACTIVE subscriptions to
+      const activeRouteIds = activeSubscriptions.map(sub => sub.routeId);
+      const userJoinedRoutes = allRoutes.filter(route => activeRouteIds.includes(route.id));
+      
+      // Filter routes created by user
+      const userId = parseInt(user.id, 10);
+      const userProposedRoutes = allRoutes.filter(route => parseInt(route.createdBy, 10) === userId);
+      
+      setJoinedRoutes(userJoinedRoutes);
+      setProposedRoutes(userProposedRoutes);
+      
+      console.log('Active subscriptions:', activeSubscriptions);
+      console.log('Joined routes:', userJoinedRoutes);
+      console.log('Proposed routes:', userProposedRoutes);
+    } catch (e) {
+      console.error('Failed to load routes:', e);
+      setError('Failed to load your routes. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
-
     if (!isAuthenticated) {
       setLoading(false);
       return;
     }
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-
-        // Get user's subscriptions to find their routes
-        const subsResult = await apiService.getSubscriptions({ userId: user?.id });
-        const subscriptions = subsResult.subscriptions || subsResult.data || [];
-        
-        // Get all routes
-        const routesResult = await apiService.getRoutes();
-        const allRoutes = routesResult.routes || [];
-        
-        // Filter routes user has subscribed to
-        const subscribedRouteIds = subscriptions.map(sub => sub.routeId);
-        const userRoutes = allRoutes.filter(route => subscribedRouteIds.includes(route.id));
-        
-        // Filter routes created by user (proposed routes) - compare as numbers
-        const userId = parseInt(user?.id, 10);
-        const userProposedRoutes = allRoutes.filter(route => parseInt(route.createdBy, 10) === userId);
-        
-        console.log('Current user ID:', userId, 'type:', typeof userId);
-        
-        setMyRoutes(userRoutes);
-        setProposedRoutes(userProposedRoutes);
-        
-        console.log('User routes loaded:', userRoutes);
-        console.log('Proposed routes loaded:', userProposedRoutes);
-      } catch (e) {
-        console.error('Failed to load routes:', e);
-        setError('Failed to load your routes. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
   }, [authLoading, isAuthenticated, user]);
 
   const handleLeaveRoute = async (routeId) => {
-    if (!window.confirm('Are you sure you want to leave this route?')) return;
+    if (!window.confirm('Are you sure you want to leave this route? This will cancel your subscription.')) return;
     
     try {
-      // Find subscription for this route and cancel it
+      // Find ACTIVE subscription for this route
       const subsResult = await apiService.getSubscriptions({ userId: user?.id });
-      const subscription = (subsResult.subscriptions || []).find(s => s.routeId === routeId);
+      const allSubs = subsResult.subscriptions || subsResult.data || [];
+      const subscription = allSubs.find(
+        s => s.routeId === routeId && (s.status === 'active' || s.status === 'ACTIVE')
+      );
       
       if (subscription) {
         await apiService.cancelSubscription(subscription.id);
-        setMyRoutes(prev => prev.filter(r => r.id !== routeId));
+        // Remove from local state immediately
+        setJoinedRoutes(prev => prev.filter(r => r.id !== routeId));
         alert('Successfully left the route.');
+      } else {
+        alert('No active subscription found for this route.');
       }
     } catch (e) {
       console.error('Failed to leave route:', e);
-      alert('Failed to leave route.');
+      alert('Failed to leave route: ' + e.message);
     }
   };
 
@@ -111,7 +121,7 @@ function MyRoutes() {
     <div className="home-page">
       <div className="hero">
         <h1 className="hero-title">My Routes</h1>
-        <p className="hero-subtitle">Routes you've joined and proposed</p>
+        <p className="hero-subtitle">Routes you've created and subscribed to</p>
       </div>
 
       {loading ? (
@@ -121,25 +131,26 @@ function MyRoutes() {
         </div>
       ) : error ? (
         <div className="error-section">
-          <p>{error}</p>
+          <p style={{color: 'red'}}>{error}</p>
+          <button className="btn btn-primary" onClick={loadData}>Retry</button>
         </div>
       ) : (
         <>
           {/* Routes I've Proposed */}
           <div className="routes-container">
             <div className="section-header">
-              <h2>Routes I've Proposed</h2>
+              <h2>Routes I've Proposed ({proposedRoutes.length})</h2>
             </div>
 
             {proposedRoutes.length === 0 ? (
-              <p>You haven't proposed any routes yet.</p>
+              <p>You haven't proposed any routes yet. Go to home page to propose a new route!</p>
             ) : (
               <div className="routes-grid">
                 {proposedRoutes.map((route) => (
                   <div key={route.id} className={`route-card ${route.status}`}>
                     <div className="route-header">
                       <div className={`route-status ${route.status}`}>
-                        {route.status.toUpperCase()}
+                        {(route.status || 'proposed').toUpperCase()}
                       </div>
                     </div>
 
@@ -171,21 +182,21 @@ function MyRoutes() {
             )}
           </div>
 
-          {/* Routes I've Joined */}
+          {/* Routes I've Subscribed To */}
           <div className="routes-container">
             <div className="section-header">
-              <h2>Routes I've Joined</h2>
+              <h2>Routes I've Subscribed To ({joinedRoutes.length})</h2>
             </div>
 
-            {myRoutes.length === 0 ? (
-              <p>You haven't joined any routes yet. Browse available routes to join one!</p>
+            {joinedRoutes.length === 0 ? (
+              <p>You don't have any active subscriptions. Browse routes on the home page to subscribe!</p>
             ) : (
               <div className="routes-grid">
-                {myRoutes.map((route) => (
+                {joinedRoutes.map((route) => (
                   <div key={route.id} className={`route-card ${route.status}`}>
                     <div className="route-header">
                       <div className={`route-status ${route.status}`}>
-                        {route.status.toUpperCase()}
+                        {(route.status || 'active').toUpperCase()}
                       </div>
                     </div>
 
@@ -211,7 +222,7 @@ function MyRoutes() {
                       className="btn btn-secondary"
                       onClick={() => handleLeaveRoute(route.id)}
                     >
-                      Leave Route
+                      Cancel Subscription
                     </button>
                   </div>
                 ))}

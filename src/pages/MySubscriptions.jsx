@@ -7,79 +7,99 @@ function MySubscriptions() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [subscriptions, setSubscriptions] = useState([]);
   const [upcomingTrips, setUpcomingTrips] = useState([]);
-  
+  const [routeCache, setRouteCache] = useState({});
+
+  // Load all routes once to avoid multiple API calls
+  const loadRoutes = async () => {
+    try {
+      const routesResult = await apiService.getRoutes();
+      const routes = routesResult.routes || [];
+      const cache = {};
+      routes.forEach(route => {
+        cache[route.id] = route;
+      });
+      setRouteCache(cache);
+      return cache;
+    } catch (e) {
+      console.error('Failed to load routes:', e);
+      return {};
+    }
+  };
+
+  const loadData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+
+      // Load routes first
+      const routes = await loadRoutes();
+
+      // Get user's subscriptions
+      const subsResult = await apiService.getSubscriptions({ userId: user.id });
+      const subs = subsResult.subscriptions || subsResult.data || [];
+      
+      // Enrich subscriptions with route data from cache
+      const enrichedSubs = subs.map(sub => {
+        const route = routes[sub.routeId];
+        return {
+          ...sub,
+          route: route ? {
+            from: route.from || 'Columbia University',
+            to: route.to || 'Unknown',
+            schedule: formatSchedule(route),
+            semester: route.semester || sub.semester
+          } : {
+            from: 'Columbia University',
+            to: `Route #${sub.routeId}`,
+            schedule: 'N/A',
+            semester: sub.semester
+          }
+        };
+      });
+      
+      setSubscriptions(enrichedSubs);
+      
+      // Get user's trips
+      try {
+        const tripsResult = await apiService.getTrips({ userId: user.id });
+        const trips = tripsResult.data || tripsResult.trips || [];
+        setUpcomingTrips(trips.map(trip => ({
+          ...trip,
+          bookingId: trip.bookingId || trip.id,
+          route: routes[trip.routeId] || { from: 'Columbia University', to: 'Unknown' }
+        })));
+      } catch (tripError) {
+        console.warn('Failed to load trips:', tripError);
+        setUpcomingTrips([]);
+      }
+    } catch (e) {
+      console.error('Failed to load subscriptions:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatSchedule = (route) => {
+    if (!route) return 'N/A';
+    if (typeof route.schedule === 'string') return route.schedule;
+    if (route.schedule && typeof route.schedule === 'object') {
+      const days = Array.isArray(route.schedule.days) ? route.schedule.days.join(', ') : '';
+      const morning = route.schedule.morningTime || '08:00';
+      const evening = route.schedule.eveningTime || '18:00';
+      return `${days} ${morning} / ${evening}`;
+    }
+    return 'Schedule TBD';
+  };
+
   useEffect(() => {
     if (authLoading) return;
-
     if (!isAuthenticated) {
       setLoading(false);
       return;
     }
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-
-        // Try to get subscriptions from real API
-        let subs = [];
-        let trips = [];
-        
-        try {
-          // Get user's subscriptions
-          const subsResult = await apiService.getSubscriptions({ userId: user?.id || 1 });
-          subs = subsResult.subscriptions || [];
-          console.log('Subscriptions loaded:', subs);
-          
-          // Get user's trips
-          try {
-            const tripsResult = await apiService.getTrips({ userId: user?.id || 1 });
-            trips = tripsResult.data || tripsResult.trips || [];
-            console.log('Trips loaded:', trips);
-          } catch (tripError) {
-            console.warn('Failed to load trips:', tripError);
-          }
-          
-          // Enrich subscriptions with route data
-          for (let sub of subs) {
-            if (sub.routeId && !sub.route?.from) {
-              try {
-                const routeData = await apiService.getRoute(sub.routeId);
-                sub.route = {
-                  from: routeData.from || routeData.from_location || 'Columbia University',
-                  to: routeData.to || routeData.to_location || 'Unknown',
-                  schedule: routeData.schedule || `${routeData.morningTime || '08:00'} / ${routeData.eveningTime || '18:00'}`,
-                  semester: routeData.semester || sub.semester
-                };
-              } catch (routeError) {
-                console.warn(`Failed to load route ${sub.routeId}:`, routeError);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Real API failed, using mock instead:', e);
-          const overview = await apiService.mockGetSemesterOverview();
-          subs = overview.subscriptions || [];
-          trips = overview.upcomingTrips || [];
-        }
-
-        setSubscriptions(subs);
-        setUpcomingTrips(trips.map(trip => ({
-          ...trip,
-          bookingId: trip.bookingId || trip.id,
-          route: trip.route || { from: 'Columbia University', to: 'Loading...' }
-        })));
-      } catch (e) {
-        console.error(e);
-        setError('Failed to load subscriptions.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
   }, [authLoading, isAuthenticated, user]);
 
@@ -88,13 +108,16 @@ function MySubscriptions() {
 
     try {
       await apiService.cancelSubscription(id);
-      setSubscriptions((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, status: 'CANCELLED' } : s
+      // Update local state immediately
+      setSubscriptions(prev =>
+        prev.map(s =>
+          s.id === id ? { ...s, status: 'cancelled' } : s
         )
       );
+      alert('Subscription cancelled successfully!');
     } catch (e) {
-      alert('Failed to cancel subscription.');
+      console.error('Failed to cancel subscription:', e);
+      alert('Failed to cancel subscription: ' + e.message);
     }
   };
 
@@ -103,11 +126,11 @@ function MySubscriptions() {
 
     try {
       await apiService.cancelTripBooking(bookingId);
-      setUpcomingTrips((prev) =>
-        prev.filter((t) => t.bookingId !== bookingId)
-      );
+      setUpcomingTrips(prev => prev.filter(t => t.bookingId !== bookingId));
+      alert('Ride cancelled successfully!');
     } catch (e) {
-      alert('Failed to cancel ride.');
+      console.error('Failed to cancel ride:', e);
+      alert('Failed to cancel ride: ' + e.message);
     }
   };
 
@@ -130,6 +153,14 @@ function MySubscriptions() {
     );
   }
 
+  // Separate active and cancelled subscriptions
+  const activeSubscriptions = subscriptions.filter(
+    s => s.status === 'active' || s.status === 'ACTIVE'
+  );
+  const cancelledSubscriptions = subscriptions.filter(
+    s => s.status === 'cancelled' || s.status === 'CANCELLED'
+  );
+
   return (
     <div className="home-page">
       <div className="hero">
@@ -144,22 +175,22 @@ function MySubscriptions() {
         </div>
       ) : (
         <>
-          {/* Subscriptions */}
+          {/* Active Subscriptions */}
           <div className="routes-container">
             <div className="section-header">
-              <h2>Semester Subscriptions</h2>
+              <h2>Active Subscriptions ({activeSubscriptions.length})</h2>
             </div>
 
-            {subscriptions.length === 0 ? (
-              <p>No subscriptions yet.</p>
+            {activeSubscriptions.length === 0 ? (
+              <p>No active subscriptions. Browse routes on the home page to subscribe!</p>
             ) : (
               <div className="routes-grid">
-                {subscriptions.map((sub) => {
+                {activeSubscriptions.map((sub) => {
                   const route = sub.route || {};
                   return (
-                    <div key={sub.id} className="route-card">
+                    <div key={sub.id} className="route-card active">
                       <div className="route-header">
-                        <div className="route-status">{sub.status}</div>
+                        <div className="route-status active">ACTIVE</div>
                       </div>
 
                       <div className="route-path">
@@ -173,18 +204,16 @@ function MySubscriptions() {
                           <span>Schedule:</span> {route.schedule}
                         </div>
                         <div className="detail-item">
-                          <span>Semester:</span> {route.semester}
+                          <span>Semester:</span> {sub.semester || route.semester}
                         </div>
                       </div>
 
-                      {(sub.status === 'ACTIVE' || sub.status === 'active') && (
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => handleCancelSubscription(sub.id)}
-                        >
-                          Cancel Subscription
-                        </button>
-                      )}
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => handleCancelSubscription(sub.id)}
+                      >
+                        Cancel Subscription
+                      </button>
                     </div>
                   );
                 })}
@@ -192,14 +221,51 @@ function MySubscriptions() {
             )}
           </div>
 
+          {/* Cancelled Subscriptions */}
+          {cancelledSubscriptions.length > 0 && (
+            <div className="routes-container">
+              <div className="section-header">
+                <h2>Cancelled Subscriptions ({cancelledSubscriptions.length})</h2>
+              </div>
+
+              <div className="routes-grid">
+                {cancelledSubscriptions.map((sub) => {
+                  const route = sub.route || {};
+                  return (
+                    <div key={sub.id} className="route-card" style={{opacity: 0.6}}>
+                      <div className="route-header">
+                        <div className="route-status" style={{background: '#999'}}>CANCELLED</div>
+                      </div>
+
+                      <div className="route-path">
+                        <div className="location">🏫 {route.from}</div>
+                        <div className="arrow">↔️</div>
+                        <div className="location">🏠 {route.to}</div>
+                      </div>
+
+                      <div className="route-details">
+                        <div className="detail-item">
+                          <span>Schedule:</span> {route.schedule}
+                        </div>
+                        <div className="detail-item">
+                          <span>Semester:</span> {sub.semester || route.semester}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Upcoming Trips */}
           <div className="routes-container">
             <div className="section-header">
-              <h2>Upcoming Rides</h2>
+              <h2>Upcoming Rides ({upcomingTrips.length})</h2>
             </div>
 
             {upcomingTrips.length === 0 ? (
-              <p>No upcoming rides.</p>
+              <p>No upcoming rides scheduled.</p>
             ) : (
               <div className="routes-grid">
                 {upcomingTrips.map((trip) => {
@@ -208,7 +274,7 @@ function MySubscriptions() {
                     <div key={trip.bookingId} className="route-card active">
                       <div className="route-header">
                         <div className="route-status">
-                          {trip.type}
+                          {trip.type || 'RIDE'}
                         </div>
                       </div>
 
@@ -220,7 +286,7 @@ function MySubscriptions() {
 
                       <div className="route-details">
                         <div className="detail-item">
-                          <span>Date:</span> {trip.date}
+                          <span>Date:</span> {trip.date || 'TBD'}
                         </div>
                       </div>
 
