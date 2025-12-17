@@ -36,8 +36,11 @@ function MyRoutes() {
         const subscribedRouteIds = subscriptions.map(sub => sub.routeId);
         const userRoutes = allRoutes.filter(route => subscribedRouteIds.includes(route.id));
         
-        // Filter routes created by user (proposed routes)
-        const userProposedRoutes = allRoutes.filter(route => route.createdBy === user?.id);
+        // Filter routes created by user (proposed routes) - compare as numbers
+        const userId = parseInt(user?.id, 10);
+        const userProposedRoutes = allRoutes.filter(route => parseInt(route.createdBy, 10) === userId);
+        
+        console.log('Current user ID:', userId, 'type:', typeof userId);
         
         setMyRoutes(userRoutes);
         setProposedRoutes(userProposedRoutes);
