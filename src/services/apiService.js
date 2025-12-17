@@ -98,6 +98,10 @@ class ShuttleAPIService {
           requiredMembers: route.requiredMembers || route.required_members || 15,
           availableSeats: route.availableSeats || Math.max(0, (route.requiredMembers || 15) - (route.currentMembers || 0)),
           daysLeft: route.daysLeft || 30,
+          estimatedCost: route.estimatedCost || route.estimated_cost || 0,
+          description: route.description || '',
+          createdBy: route.createdBy || route.created_by,
+          createdAt: route.createdAt || route.created_at,
           links: route.links || {}
         };
       }),
