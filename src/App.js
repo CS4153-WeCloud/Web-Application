@@ -20,6 +20,8 @@ function AppContent() {
   // Route management state
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userJoinedRouteIds, setUserJoinedRouteIds] = useState([]); // IDs of routes user has joined
+  const [userSubscriptions, setUserSubscriptions] = useState([]); // User's active subscriptions
   
   // Authentication modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -50,6 +52,34 @@ function AppContent() {
     // Load initial routes data
     fetchRoutes();
   }, []);
+
+  // Load user's joined routes and subscriptions when authenticated
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (isAuthenticated && user?.id) {
+        try {
+          // Load routes user has joined (route_members)
+          const joinedResult = await apiService.getUserJoinedRoutes(parseInt(user.id, 10));
+          const joinedIds = (joinedResult.routes || []).map(r => r.id);
+          setUserJoinedRouteIds(joinedIds);
+          
+          // Load user's subscriptions
+          const subsResult = await apiService.getSubscriptions({ userId: user.id });
+          const subs = subsResult.subscriptions || subsResult.data || [];
+          setUserSubscriptions(subs.filter(s => s.status === 'active' || s.status === 'ACTIVE'));
+          
+          console.log('User joined route IDs:', joinedIds);
+          console.log('User active subscriptions:', subs);
+        } catch (e) {
+          console.error('Failed to load user data:', e);
+        }
+      } else {
+        setUserJoinedRouteIds([]);
+        setUserSubscriptions([]);
+      }
+    };
+    loadUserData();
+  }, [isAuthenticated, user]);
 
   // Fetch routes from composite service via HTTPS
   const fetchRoutes = async () => {
@@ -103,9 +133,12 @@ function AppContent() {
         )
       );
       
+      // Add to joined routes list immediately
+      setUserJoinedRouteIds(prev => [...prev, routeId]);
+      
       alert('Successfully joined the route!');
       
-      // Refresh routes to get latest data from server
+      // Refresh routes to get latest data from server (in case route became active)
       fetchRoutes();
     } catch (error) {
       console.error('Failed to join route via composite service:', error);
@@ -275,7 +308,8 @@ function AppContent() {
                 onProposeRoute={handleProposeRoute}
                 onRefreshRoutes={fetchRoutes}
                 currentUser={user ? { ...user, id: parseInt(user.id, 10) } : null}
-                userSubscriptions={[]}
+                userJoinedRouteIds={userJoinedRouteIds}
+                userSubscriptions={userSubscriptions}
               />
             } />
             <Route path="/my-routes" element={<MyRoutes />} />

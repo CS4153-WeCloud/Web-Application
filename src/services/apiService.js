@@ -119,6 +119,29 @@ class ShuttleAPIService {
     return this.request(`/routes/${routeId}`, { headers });
   }
 
+  // GET /api/routes/user/{userId} - Get routes user has joined (as member)
+  async getUserJoinedRoutes(userId) {
+    const response = await this.request(`/routes/user/${userId}`);
+    const routes = response.routes || [];
+    return {
+      routes: routes.map(route => ({
+        id: route.id,
+        from: route.from || route.from_location || 'Unknown',
+        to: route.to || route.to_location || 'Unknown',
+        status: route.status || 'proposed',
+        schedule: route.schedule,
+        semester: route.semester || 'Fall 2025',
+        currentMembers: route.currentMembers || route.current_members || 0,
+        requiredMembers: route.requiredMembers || route.required_members || 15,
+        estimatedCost: route.estimatedCost || route.estimated_cost || 0,
+        description: route.description || '',
+        createdBy: route.createdBy || route.created_by,
+        createdAt: route.createdAt || route.created_at
+      })),
+      totalRoutes: response.totalRoutes || routes.length
+    };
+  }
+
   // POST /api/routes - Create new route proposal
   async createRoute(routeData, userId) {
     return this.request('/routes', {
@@ -144,6 +167,16 @@ class ShuttleAPIService {
   async joinRoute(routeId, userId) {
     return this.request(`/routes/${routeId}/join`, {
       method: 'POST',
+      body: JSON.stringify({
+        userId: userId || 1
+      }),
+    });
+  }
+
+  // DELETE /api/routes/{id}/leave - Leave a route (removes from route_members)
+  async leaveRoute(routeId, userId) {
+    return this.request(`/routes/${routeId}/leave`, {
+      method: 'DELETE',
       body: JSON.stringify({
         userId: userId || 1
       }),
