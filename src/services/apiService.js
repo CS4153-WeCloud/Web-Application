@@ -15,9 +15,13 @@ class ShuttleAPIService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}/api${endpoint}`;
     
+    // Get JWT token from localStorage
+    const token = localStorage.getItem('token');
+    
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
       },
       ...options,
