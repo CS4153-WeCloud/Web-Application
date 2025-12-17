@@ -3,7 +3,7 @@
  * Manages user authentication state and integrates with Auth & User Service via composite service
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 
 // Create a React context for auth state
@@ -21,11 +21,54 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Auth status: whether user is logged in
+  const [oauthMessage, setOauthMessage] = useState(null); // OAuth status message
+
+  // Handle OAuth callback from URL parameters
+  const handleOAuthCallback = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthStatus = urlParams.get('oauth');
+    
+    if (oauthStatus === 'success') {
+      const token = urlParams.get('token');
+      const userDataStr = urlParams.get('user');
+      
+      if (token && userDataStr) {
+        try {
+          const userData = JSON.parse(decodeURIComponent(userDataStr));
+          
+          // Store token and user data
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(userData));
+          
+          setUser(userData);
+          setIsAuthenticated(true);
+          setOauthMessage({ type: 'success', text: `Welcome, ${userData.firstName || userData.email}! You are now logged in.` });
+          
+          // Clean up URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          console.log('OAuth login successful:', userData);
+        } catch (error) {
+          console.error('Failed to parse OAuth user data:', error);
+          setOauthMessage({ type: 'error', text: 'Login failed. Please try again.' });
+        }
+      }
+    } else if (oauthStatus === 'error') {
+      const errorMessage = urlParams.get('message') || 'Authentication failed';
+      setOauthMessage({ type: 'error', text: decodeURIComponent(errorMessage) });
+      
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
-    // Check if user is already logged in (e.g., from localStorage or session)
+    // First check for OAuth callback in URL
+    handleOAuthCallback();
+    
+    // Then check if user is already logged in (e.g., from localStorage or session)
     checkAuthStatus();
-  }, []);
+  }, [handleOAuthCallback]);
 
   const checkAuthStatus = async () => {
     try {
@@ -164,6 +207,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Clear OAuth message
+  const clearOauthMessage = () => {
+    setOauthMessage(null);
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -172,7 +220,9 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     updateProfile,
-    checkAuthStatus
+    checkAuthStatus,
+    oauthMessage,
+    clearOauthMessage
   };
 
   return (

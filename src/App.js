@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal.jsx';
 
 function AppContent() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, oauthMessage, clearOauthMessage } = useAuth();
   const [services, setServices] = useState({
     compositeService: { status: 'unknown', url: '' },
     authService: { status: 'unknown', url: '' },
@@ -23,6 +23,16 @@ function AppContent() {
   // Authentication modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+  
+  // Auto-hide OAuth message after 5 seconds
+  useEffect(() => {
+    if (oauthMessage) {
+      const timer = setTimeout(() => {
+        clearOauthMessage();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [oauthMessage, clearOauthMessage]);
 
   useEffect(() => {
     // Load service URLs from environment with HTTPS defaults
@@ -243,6 +253,14 @@ function AppContent() {
             </ul>
           </div>
         </nav>
+
+        {/* OAuth Status Message */}
+        {oauthMessage && (
+          <div className={`oauth-message ${oauthMessage.type}`}>
+            <span>{oauthMessage.text}</span>
+            <button onClick={clearOauthMessage} className="oauth-message-close">×</button>
+          </div>
+        )}
 
         <main className="main-content">
           <Routes>
