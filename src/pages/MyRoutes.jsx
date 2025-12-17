@@ -56,7 +56,12 @@ function MyRoutes() {
     
     try {
       // Call leave route API (removes from route_members)
-      await apiService.leaveRoute(routeId, user?.id);
+      const userId = parseInt(user?.id, 10);
+      if (!userId) {
+        alert('Please log in to leave a route.');
+        return;
+      }
+      await apiService.leaveRoute(routeId, userId);
       // Remove from local state immediately
       setJoinedRoutes(prev => prev.filter(r => r.id !== routeId));
       alert('Successfully left the route.');
