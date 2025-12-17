@@ -177,7 +177,7 @@ function MySubscriptions() {
                         </div>
                       </div>
 
-                      {sub.status === 'ACTIVE' && (
+                      {(sub.status === 'ACTIVE' || sub.status === 'active') && (
                         <button
                           className="btn btn-secondary"
                           onClick={() => handleCancelSubscription(sub.id)}

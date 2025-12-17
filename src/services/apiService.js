@@ -120,16 +120,18 @@ class ShuttleAPIService {
     return this.request('/routes', {
       method: 'POST',
       body: JSON.stringify({
-        from_location: routeData.from,
-        to_location: routeData.to,
-        schedule_days: JSON.stringify(routeData.schedule.days),
-        morning_time: routeData.schedule.morningTime,
-        evening_time: routeData.schedule.eveningTime,
+        from: routeData.from,
+        to: routeData.to,
+        schedule: {
+          days: routeData.schedule.days,
+          morningTime: routeData.schedule.morningTime,
+          eveningTime: routeData.schedule.eveningTime
+        },
         semester: routeData.semester,
-        estimated_cost: parseFloat(routeData.estimatedCost) || 100,
+        estimatedCost: parseFloat(routeData.estimatedCost) || 100,
         description: routeData.description || '',
-        required_members: 15,
-        created_by: userId || 1
+        requiredMembers: 15,
+        createdBy: userId || 1
       }),
     });
   }

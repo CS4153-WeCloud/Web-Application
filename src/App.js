@@ -4,6 +4,7 @@ import './App.css';
 import HomePage from './pages/HomePage.jsx';
 import UserProfile from './pages/UserProfile.jsx';
 import MySubscriptions from './pages/MySubscriptions.jsx';
+import MyRoutes from './pages/MyRoutes.jsx';
 import apiService from './services/apiService';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal.jsx';
@@ -275,7 +276,7 @@ function AppContent() {
                 onRefreshRoutes={fetchRoutes}
               />
             } />
-            <Route path="/my-routes" element={<div>My Routes - Coming Soon</div>} />
+            <Route path="/my-routes" element={<MyRoutes />} />
             <Route path="/subscriptions" element={<MySubscriptions />} />
             <Route path="/profile" element={<UserProfile />} />
           </Routes>
