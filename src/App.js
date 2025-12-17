@@ -274,6 +274,8 @@ function AppContent() {
                 onSubscribeRoute={handleSubscribeRoute}
                 onProposeRoute={handleProposeRoute}
                 onRefreshRoutes={fetchRoutes}
+                currentUser={user ? { ...user, id: parseInt(user.id, 10) } : null}
+                userSubscriptions={[]}
               />
             } />
             <Route path="/my-routes" element={<MyRoutes />} />
